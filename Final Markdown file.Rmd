@@ -1,0 +1,612 @@
+---
+title: "Untitled"
+author: "Arch Jignesh Desai"
+date: "5 December 2018"
+output: pdf_document
+---
+```{r}
+library(ggplot2)
+library(randomForest)
+library(MASS)
+
+library(glmnet)
+
+library(leaps)
+```
+
+
+## Please select Dataset.csv file from your PC:
+
+```{r}
+data<-read.csv(file.choose(),header=T)
+#View(data)
+#str(data)
+```
+
+```{r}
+#total number of NA values:
+sum(is.na(data))  
+```
+
+```{r}
+#calculating the total percentage of missing values in each variables :
+missingdata<-as.data.frame(sort(sapply(data, function(x) sum(is.na(x))),decreasing=T)) 
+missingdata<-(missingdata/nrow(data))*100
+class(missingdata)
+colnames(missingdata)[1]<-"Percentage"
+missingdata$predictors<-row.names(missingdata)
+missingdata
+```
+
+```{r}
+#subsetting the variables with 0 percent error into the final dataset:
+x<-subset(missingdata,missingdata$Percentage==0)
+```
+
+```{r}
+#final dataset:
+Data<-data[,(x$predictors)]
+```
+
+```{r}
+Data
+```
+
+```{r}
+#numbering the variables:
+for (i in 1:190)
+{
+  names(Data)[i]<-paste(i)
+}
+```
+
+```{r}
+#Selecting our Response variable, GDP growth:
+names(Data)[118]<-paste("GDP.growth")
+```
+
+
+```{r}
+Data #final dataset (58*190)
+pairs(Data[,1:10]) #correlation matrix
+```
+
+
+```{r} 
+# Fitting dataset to Multiple Linear Regression Model:
+lm.fwd.fit0=lm(GDP.growth~.,data=Data)
+sum<-summary(lm.fwd.fit0)
+sum #variance too high to consider this model
+```
+
+```{r}
+#Performing Forward Subset Selection to select the best model:
+regfit.fwd=regsubsets(GDP.growth~.,data=Data,nvmax=189, method="forward")
+summ<-summary(regfit.fwd)
+```
+
+```{r}
+#Best model selection through indirect estimate of test model methods:
+par(mfrow=c(2,2))
+#RSS
+plot(summ$rss,xlab="Number of predictors",ylab="RSS",type="l")
+#Adjusted R^2
+plot(summ$adjr2,xlab="Number of predictors",ylab="Adjusted RSq",type="l")
+which.max(summ$adjr2)
+points(30,summ$adjr2[30], col="red",cex=2,pch=20)
+#Cp
+plot(summ$cp,xlab="Number of predictors",ylab="Cp",type='l')
+which.min(summ$cp)
+points(1,summ$cp[1],col="red",cex=2,pch=20)
+#BIC
+plot(summ$bic,xlab="Number of predictors",ylab="BIC",type='l')
+which.min(summ$bic)
+points(30,summ$bic[30],col="red",cex=2,pch=20)
+```
+
+```{r}
+#best model with 30 predictors, calculating the coefficients of variables:
+coef(regfit.fwd,30)
+```
+
+```{r}
+#best model fitting from forward selection on linear model:
+lm.fwd.fit1=lm(GDP.growth~`4`+`14`+`19`+`21`+`23`+`27`+`28`+`43`+`64`+`65`+`66`+`67`+`71`+`74`+`93`+`94`+`103`+`110`+`126`+`130`+`140`+`144`+`150`+ `151`   +`153`+`165`+`186`+`187`+`189`+`190`,data=Data)
+summary(lm.fwd.fit1) 
+#daignostic plots
+par(mfrow=c(2,2))
+plot(lm.fwd.fit1)
+```
+
+```{r}
+#checking for High leverage Points:
+library(stats)
+hlp=cooks.distance(lm.fwd.fit1)>0.333
+hlp
+```
+
+```{r}
+# checking for collinearity of variables :
+library(car)
+vif(lm.fwd.fit1)
+max(vif(lm.fwd.fit1))
+```
+
+#Remove '28' with VIF > 5
+```{r}
+lm.fwd.fit1.whlp2=lm(GDP.growth~`4`+`14`+`19`+`21`+`23`+`27`+`43`+`64`+`65`+`66`+`67`+`71`+`74`+`93`+`94`+`103`+`110`+`126`+`130`+`140`+`144`+`150`+ `151`   +`153`+`165`+`186`+`187`+`189`+`190`,data=Data)
+```
+
+```{r}
+vif(lm.fwd.fit1.whlp2)
+max(vif(lm.fwd.fit1.whlp2))
+```
+
+#Remove '94' with VIF > 5
+```{r}
+lm.fwd.fit1.whlp3=lm(GDP.growth~`4`+`14`+`19`+`21`+`23`+`27`+`43`+`64`+`65`+`66`+`67`+`71`+`74`+`93`+`103`+`110`+`126`+`130`+`140`+`144`+`150`+ `151`   +`153`+`165`+`186`+`187`+`189`+`190`,data=Data)
+```
+
+```{r}
+vif(lm.fwd.fit1.whlp3)
+max(vif(lm.fwd.fit1.whlp3))
+```
+
+#Remove '130' with VIF > 5
+```{r}
+lm.fwd.fit1.whlp4=lm(GDP.growth~`4`+`14`+`19`+`21`+`23`+`27`+`43`+`64`+`65`+`66`+`67`+`71`+`74`+`93`+`103`+`110`+`126`+`140`+`144`+`150`+ `151`   +`153`+`165`+`186`+`187`+`189`+`190`,data=Data)
+```
+
+```{r}
+vif(lm.fwd.fit1.whlp4)
+max(vif(lm.fwd.fit1.whlp4))
+```
+
+#Remove '4' with VIF > 5
+```{r}
+lm.fwd.fit1.whlp5=lm(GDP.growth~`14`+`19`+`21`+`23`+`27`+`43`+`64`+`65`+`66`+`67`+`71`+`74`+`93`+`103`+`110`+`126`+`140`+`144`+`150`+ `151`   +`153`+`165`+`186`+`187`+`189`+`190`,data=Data)
+```
+
+
+```{r}
+vif(lm.fwd.fit1.whlp5)
+max(vif(lm.fwd.fit1.whlp5))
+```
+
+#Remove '93' with VIF > 5
+```{r}
+lm.fwd.fit1.whlp6=lm(GDP.growth~`14`+`19`+`21`+`23`+`27`+`43`+`64`+`65`+`66`+`67`+`71`+`74`+`103`+`110`+`126`+`140`+`144`+`150`+ `151`   +`153`+`165`+`186`+`187`+`189`+`190`,data=Data)
+```
+
+
+```{r}
+vif(lm.fwd.fit1.whlp6)
+max(vif(lm.fwd.fit1.whlp6))
+```
+
+#Remove '14 and 21' with VIF > 5
+```{r}
+lm.fwd.fit1.whlp7=lm(GDP.growth~`19`+`23`+`27`+`43`+`64`+`65`+`66`+`67`+`71`+`74`+`103`+`110`+`126`+`140`+`144`+`150`+ `151`   +`153`+`165`+`186`+`187`+`189`+`190`,data=Data)
+```
+
+
+```{r}
+vif(lm.fwd.fit1.whlp7)
+max(vif(lm.fwd.fit1.whlp7))
+```
+
+#Remove '186 and 140' with VIF > 5
+```{r}
+lm.fwd.fit1.whlp8=lm(GDP.growth~`19`+`23`+`27`+`43`+`64`+`65`+`66`+`67`+`71`+`74`+`103`+`110`+`126`+`144`+`150`+ `151`   +`153`+`165`+`187`+`189`+`190`,data=Data)
+```
+
+
+```{r}
+vif(lm.fwd.fit1.whlp8)
+max(vif(lm.fwd.fit1.whlp8))
+```
+
+#Remove '66 and 144' with VIF > 5
+```{r}
+lm.fwd.fit1.whlp9=lm(GDP.growth~`19`+`23`+`27`+`43`+`64`+`65`+`67`+`71`+`74`+`103`+`110`+`126`+`150`+ `151`   +`153`+`165`+`187`+`189`+`190`,data=Data)
+```
+
+
+```{r}
+vif(lm.fwd.fit1.whlp9)
+max(vif(lm.fwd.fit1.whlp9))
+```
+
+#Remove '19 and 23' with VIF > 5
+```{r}
+lm.fwd.fit1.whlp10=lm(GDP.growth~`27`+`43`+`64`+`65`+`67`+`71`+`74`+`103`+`110`+`126`+`150`+ `151`   +`153`+`165`+`187`+`189`+`190`,data=Data)
+```
+
+
+```{r}
+vif(lm.fwd.fit1.whlp10)
+max(vif(lm.fwd.fit1.whlp10))
+```
+
+#Remove '43' with VIF > 5
+```{r}
+lm.fwd.fit1.whlp11=lm(GDP.growth~`27`+`64`+`65`+`67`+`71`+`74`+`103`+`110`+`126`+`150`+ `151`   +`153`+`165`+`187`+`189`+`190`,data=Data)
+```
+
+
+```{r}
+vif(lm.fwd.fit1.whlp11)
+max(vif(lm.fwd.fit1.whlp11))
+```
+
+#Remove '150 and 110' with VIF > 5
+```{r}
+lm.fwd.fit1.whlp12=lm(GDP.growth~`27`+`64`+`65`+`67`+`71`+`74`+`103`+`126`+ `151`   +`153`+`165`+`187`+`189`+`190`,data=Data)
+```
+
+
+```{r}
+vif(lm.fwd.fit1.whlp12)
+max(vif(lm.fwd.fit1.whlp12))
+```
+
+#Remove '65' with VIF > 5
+```{r}
+lm.fwd.fit1.whlp13=lm(GDP.growth~`27`+`64`+`67`+`71`+`74`+`103`+`126`+ `151`   +`153`+`165`+`187`+`189`+`190`,data=Data)
+```
+
+
+```{r}
+vif(lm.fwd.fit1.whlp13)
+max(vif(lm.fwd.fit1.whlp13))
+```
+
+#Remove '189 and 27' with VIF > 5
+```{r}
+lm.fwd.fit1.whlp14=lm(GDP.growth~`64`+`67`+`71`+`74`+`103`+`126`+ `151`   +`153`+`165`+`187`+`190`,data=Data)
+```
+
+
+```{r}
+vif(lm.fwd.fit1.whlp14)
+max(vif(lm.fwd.fit1.whlp14))
+```
+
+#Remove '153 and 151' with VIF > 5
+```{r}
+lm.fwd.fit1.whlp15=lm(GDP.growth~`64`+`67`+`71`+`74`+`103`+`126`+`165`+`187`+`190`,data=Data)
+```
+
+
+```{r} 
+#Final model with VIF < 5 :
+vif(lm.fwd.fit1.whlp15)
+max(vif(lm.fwd.fit1.whlp15))
+```
+
+
+```{r}
+# checking for non-constant variance of error terms:
+ncvTest(lm.fwd.fit1.whlp15)
+par(mfrow=c(2,2))
+plot(lm.fwd.fit1.whlp15)
+```
+
+```{r}
+#linear model with predictors with VIF > 5 :
+lm.fwd.fit1.whlp15.ncv1=lm((GDP.growth)~`64`+`67`+`71`+`74`+`103`+`126`+`165`+`187`+`190`,data=Data)
+ncvTest(lm.fwd.fit1.whlp15.ncv1)
+par(mfrow=c(2,2))
+plot(lm.fwd.fit1.whlp15.ncv1)
+```
+
+Thus at p=0.011498 (>0.01) null hypothesis cant be rejected based on these observations alone, hence we will select GDP.growth as response which passes the model daignostic tests with constant variance of error terms.
+
+```{r}
+#removing the Outliers and High leverage points from the dataset:
+Data.whlp2 <- Data[-c(15,16,20,6),]
+View(Data.whlp2)
+```
+
+##FORWARD MODEL TEST MSE
+
+```{r}
+#dividing the data over train and test data as 80%:20% :
+set.seed(1)
+train=sample(1:nrow(Data.whlp2),size=0.8*nrow(Data.whlp2))
+Data.train=Data.whlp2[train,]
+Data.test=Data.whlp2[-train,]
+dim(Data.train)
+
+dim(Data.test)
+```
+
+```{r}
+#best subset selection model with 9 predictors, fitting over training data:
+lm.fwd.fit1.whlp15.ncv1=lm((GDP.growth)~`64`+`67`+`71`+`74`+`103`+`126`+`165`+`187`+`190`,data=Data.train)
+summary(lm.fwd.fit1.whlp15.ncv1)
+#predicting over test data for test MSE:
+pred=predict(lm.fwd.fit1.whlp15.ncv1,Data.test)
+mse.fwd=mean((pred-Data.test$GDP.growth)^2)
+mse.fwd
+
+plot(Data.test$GDP.growth,pred,xlab="GDP Growth Observations",ylab="GDP Growth Predictions")
+abline(lm.fwd.fit1.whlp15.ncv1,type='l',col='blue')
+title(main="Model Accuracy")
+```
+
+## Ridge Regression:
+
+```{r}
+library(glmnet)
+library(Matrix)
+library(foreach)
+x=model.matrix(GDP.growth~.,Data)
+y=Data$GDP.growth
+grid=10^seq(10,-2,length=100)
+```
+
+
+```{r}
+#defining train and test data:
+set.seed(1)
+train2<-sample(1:nrow(Data),size=0.8*nrow(Data))
+test=(-train2)
+y.test=y[test]
+```
+
+```{r}
+#running ridge regression on the model matrix:
+ridge.tr<-glmnet(x[train2,],y[train2],alpha=0,lambda=grid)
+plot(ridge.tr)
+```
+
+```{r}
+#selecting best lambda by cross-validation:
+cv.out=cv.glmnet(x[train2,],y[train2],alpha=0)
+plot(cv.out)
+bestlam=cv.out$lambda.min
+bestlam
+```
+
+```{r}
+#predicting over test data for test MSE with best lambda value:
+ridge.pred=predict(ridge.tr,s=bestlam,newx=x[test,])
+mean((ridge.pred-y.test)^2)
+```
+
+```{r}
+#coefficients from ridge regession:
+out=glmnet(x,y,alpha=0)
+ridge.coef=predict(out, type="coefficients",s=bestlam)[1:190,]
+ncoef=as.matrix(ridge.coef)
+dim(ncoef)
+ncoef
+coef.Ridge.Reg=ncoef[-1,]
+plot(coef.Ridge.Reg)
+```
+
+
+```{r}
+# fitering Coefficients greater than 10^-3 (Threshold)
+x.n=model.matrix(GDP.growth~`3`+`8`+`18`+`28`+`30`+`31`+`32`+`34`+`36`+`39`+`40`+`41`+`42`+`43`+`44`+`45`+`46`+`47`+`48`+`49`+`51`+`53`+`55`+`56`+`57`+`58`+`59`+`60`+`61`+`62`+`63`+`64`+`65`+`66`+`67`+`68`+`69`+`70`+`71`+`72`+`73`+`74`+`75`+`77`+`79`+`82`+`83`+`84`+`85`+`86`+`87`+`89`+`91`+`93`+`94`+`130`+`132`+`136`+`145`+`153`+`160`+`165`+`171`+`176`+`182`+`187`,Data)
+```
+
+```{r}
+y.n=Data$GDP.growth
+grid.n=10^seq(10,-2,length=100)
+```
+
+```{r}
+#defining train and test data:
+set.seed(1)
+train.n<-sample(1:nrow(Data),size=0.8*nrow(Data))
+train.n
+test.n=(-train.n)
+y.test.n=y[test.n]
+#ridge regression on the dataset:
+ridge.tr.n<-glmnet(x.n[train.n,],y.n[train.n],alpha=0,lambda=grid.n)
+plot(ridge.tr.n)
+```
+
+```{r}
+#cross-validation for best lamda:
+cv.out.n=cv.glmnet(x.n[train.n,],y.n[train.n],alpha=0)
+plot(cv.out.n)
+bestlam.n=cv.out.n$lambda.min
+bestlam.n
+```
+
+```{r}
+#ridge regression over best lambda:
+ridge.pred.n=predict(ridge.tr.n,s=bestlam.n,newx=x.n[test.n,])
+mse.ridge =mean((ridge.pred.n-y.test.n)^2)
+mse.ridge
+```
+
+```{r}
+#coefficients of ridge regression:
+out.n=glmnet(x,y,alpha=0)
+ridge.coef.n=predict(out.n, type="coefficients",s=bestlam.n)[1:190,]
+ncoef.n=as.matrix(ridge.coef.n)
+dim(ncoef.n)
+ncoef.ridge=ncoef.n[-1,]
+plot(ncoef.ridge)
+```
+
+## LASSO regression:
+
+```{r}
+library(glmnet)
+x=model.matrix(GDP.growth~.,Data)
+y=Data$GDP.growth
+grid=10^seq(10,-2,length=100)
+#lasso regression model:
+lasso.mod=glmnet(x,y,alpha=1,lambda=grid)
+dim(coef(lasso.mod))
+plot(lasso.mod)
+```
+
+
+```{r}
+#defining test and training data:
+set.seed(1)
+train2<-sample(seq(58),size=45,replace=FALSE)
+test2=(-train2)
+y.test=y[test2]
+lasso.tr<-glmnet(x[train2,],y[train2],alpha=1,lambda=grid)
+```
+
+```{r}
+#cross-validation for best lambda:
+set.seed(1)
+cv.lasso<-cv.glmnet(x[train2,],y[train2],alpha=1)
+plot(cv.lasso)
+bestlam=cv.lasso$lambda.min
+bestlam
+#lasso regression with best lambda:
+set.seed(1)
+lasso.pred=predict(lasso.tr,s=bestlam,newx=x[test2,])
+mean((lasso.pred-y.test)^2)
+
+out=glmnet(x,y,alpha=1,lambda=grid)
+lasso.coef=predict(out, type="coefficients",s=bestlam)[1:190,]
+#lasso coefficients of predictors:
+lasso.coef[lasso.coef!=0]
+```
+
+```{r}
+lm.fwd.fit1=lm(GDP.growth~`69`+`110`+`127`+`150`,data=Data)
+summary(lm.fwd.fit1)
+par(mfrow=c(2,2))
+plot(lm.fwd.fit1)
+```
+
+```{r}
+#high leverage points:
+hlp=cooks.distance(lm.fwd.fit1)>0.333
+hlp
+```
+
+```{r}
+#multicollinearity, VIF >5
+vif(lm.fwd.fit1)
+max(vif(lm.fwd.fit1))
+```
+
+```{r}
+#removing point '110'
+lm.fwd.fit12=lm(GDP.growth~`69`+`127`+`150`,data=Data)
+summary(lm.fwd.fit12)
+```
+
+```{r}
+#multicollinearity, VIF >5
+vif(lm.fwd.fit12)
+max(vif(lm.fwd.fit12))
+```
+
+```{r}
+#calculating the Test MSE for Lasso:
+set.seed (1)
+Data.train.mse=sample(seq(58),size=41,replace=FALSE)
+Data.test.mse=Data[-Data.train.mse,]
+lm.fit12.mse=predict(lm.fwd.fit12,newdata=Data[-Data.train.mse,])
+mse.lasso =mean(( lm.fit12.mse-Data.test.mse$GDP.growth)^2)
+mse.lasso
+```
+
+```{r}
+#calculating test MSE through Cross-validation, k-fold, direct MSE approach
+library(boot)
+set.seed(1)
+cv.error.10 = rep(0,10)
+for (i in 1:10) {
+glm.fit = glm(GDP.growth~`69`+`127`+`150`,data=Data)
+cv.error.10[i] = cv.glm(data=Data,glm.fit,K=10)$delta[1]
+}
+cv.error.10
+mean(cv.error.10)
+plot(cv.error.10)
+```
+
+## Random Forest:
+
+## Please select Dataset.csv file from your PC:
+
+```{r}
+library (randomForest)
+Data1<-read.csv(file.choose(),header = T)
+Data1<-Data1[,-1]
+```
+
+```{r}
+#checking for percentage of missing data in for every predictor:
+missingdata<-as.data.frame(sort(sapply(Data1, function(x) sum(is.na(x))),decreasing=T))
+missingdata<-(missingdata/nrow(Data1))*100
+class(missingdata)
+colnames(missingdata)[1]<-"Percentage"
+missingdata$predictors<-row.names(missingdata)
+missingdata
+```
+
+```{r}
+#subsetting dataset with missing values percent as 0:
+x<-subset(missingdata,missingdata$Percentage==0)
+```
+
+```{r}
+#final dataset:
+Data1<-Data1[,(x$predictors)]
+```
+
+```{r}
+#defining train and test data:
+set.seed(1)
+train<-sample(1:nrow(Data1),size=0.8*nrow(Data1))
+Data.train<-Data1[train,]
+Data.test<-Data1[-train,]
+dim(Data.train)
+dim(Data.test)
+sum(is.na(Data1))
+```
+
+```{r}
+#random forest model fitting over train data:
+rf<-randomForest(GDP.growth~.,data = Data.train,mtry=63,importance=TRUE)
+plot(rf)
+```
+
+```{r}
+#calculating test MSE:
+yhat<-predict(rf,newdata=Data.test)
+mse.rf <-mean(( yhat-Data.test$GDP.growth)^2)
+mse.rf
+#importance of predictors:
+importance(rf)
+varImpPlot(rf,n.var = 10)
+```
+
+##PRINCIPAL COMPONENT ANALYSIS, PCA:
+
+```{r}
+PCA<-prcomp(Data,center = T,scale. = T)
+library(factoextra)
+fviz_pca_var(PCA, col.var = "blue")
+```
+
+```{r}
+#calculating test mse for PCA:
+library(pls)
+Y<-Data1$GDP.growth
+PCR<-pcr(GDP.growth~.,data=Data.train,scale = TRUE, validation = "CV")
+pcr_pred <- predict(PCR, Data.test, ncomp = 2)
+mse.pca=mean((pcr_pred - Data.test$GDP.growth)^2)
+mse.pca
+```
+
+```{r}
+#Cross-validation error and Variation of Principal components explained:
+summary(PCR)
+```
+
